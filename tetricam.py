@@ -9,11 +9,11 @@ from ultralytics import YOLO
 model = YOLO("yolov8n-pose.pt")
 
 # Start emulator
-pyboy = PyBoy('Super Mario Bros. Deluxe (USA, Europe) (Rev 1).gbc', window="SDL2")
+pyboy = PyBoy('tetris.gb', window="SDL2")
 pyboy.set_emulation_speed(1.0)
 
 # Track button state
-buttons_state = {'left': False, 'right': False, 'jump': False}
+buttons_state = {'left': False, 'right': False, 'down': False, 'turn': False, 'start': False}
 pose_result = None
 running = True
 
@@ -21,23 +21,31 @@ running = True
 cap = cv2.VideoCapture(0)
 
 # Cooldown control for jump
-jump_ready = True
-jump_last_time = 0
-JUMP_COOLDOWN = 0.8  # Seconds between jumps
-JUMP_TAP_DURATION = 0.5  # How long the jump "button" is held
+#jump_ready = True
+#jump_last_time = 0
+#JUMP_COOLDOWN = 0.8  # Seconds between jumps
+#JUMP_TAP_DURATION = 0.5  # How long the jump "button" is held
+turn_ready = True
+turn_last_time = 0
+TURN_TAP_DURATION = 0.5  # How long the turn "button" is held
+TURN_COOLDOWN = 0.5  # Seconds between turns
 
 def is_left_hand_left(elbow, wrist):
     dx = wrist[0] - elbow[0]
     dy = abs(wrist[1] - elbow[1])
-    return dx > 50 and dy < 40  # You can tune these values
+    return dx > 50 and dy < 50  # You can tune these values
 
 def is_right_hand_right(elbow, wrist):
     dx = elbow[0] - wrist[0]
     dy = abs(wrist[1] - elbow[1])
-    return dx > 50 and dy < 40  # Same tuning here
+    return dx > 50 and dy < 50  # Same tuning here
 
 def is_arm_up(elbow, wrist):
-    return wrist[1] < elbow[1] - 40
+    return wrist[1] < elbow[1] - 45
+
+def is_arm_down(elbow, wrist):
+    return wrist[1] > elbow[1] + 60
+
 
 #def are_you_crouched(knee, hip):
 #    return knee[1] > hip[1] + 50
@@ -77,7 +85,10 @@ while pyboy.tick():
 
             move_left = is_left_hand_left(left_elbow, left_wrist)
             move_right = is_right_hand_right(right_elbow, right_wrist)
-            arm_up = is_arm_up(right_elbow, right_wrist) or is_arm_up(left_elbow, left_wrist)
+            right_arm_up = is_arm_up(right_elbow, right_wrist)
+            left_arm_up = is_arm_up(left_elbow, left_wrist)
+            arm_down = is_arm_down(right_elbow, right_wrist) or is_arm_down(left_elbow, left_wrist)
+            start = is_arm_up(left_elbow, left_wrist) and is_arm_up(right_elbow, right_wrist)
             #crouch = are_you_crouched(left_knee, left_hip) or are_you_crouched(right_knee, right_hip)
 
             # --- LEFT ---
@@ -96,6 +107,22 @@ while pyboy.tick():
                 pyboy.send_input(WindowEvent.RELEASE_ARROW_RIGHT)
                 buttons_state['right'] = False
 
+            # --- DOWN ---
+            if arm_down and not buttons_state['down']:
+                pyboy.send_input(WindowEvent.PRESS_ARROW_DOWN)
+                buttons_state['down'] = True
+            elif not arm_down and buttons_state['down']:
+                pyboy.send_input(WindowEvent.RELEASE_ARROW_DOWN)
+                buttons_state['down'] = False
+
+            # --- START ---
+            if start and not buttons_state['start']:
+                pyboy.send_input(WindowEvent.PRESS_BUTTON_START)
+                buttons_state['start'] = True
+            elif not start and buttons_state['start']:
+                pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
+                buttons_state['start'] = False
+                
             # --- CROUCH ---
             #if crouch and not buttons_state['down']:
             #    pyboy.send_input(WindowEvent.PRESS_ARROW_DOWN)
@@ -106,22 +133,31 @@ while pyboy.tick():
 
             # --- JUMP TAP ---
             current_time = time.time()
-            if arm_up and jump_ready:
+            if right_arm_up and turn_ready and not buttons_state['turn']:
                 pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
-                buttons_state['jump'] = True
-                jump_ready = False
-                jump_last_time = current_time
+                buttons_state['turn'] = True
 
                 # Schedule auto-release after tap duration
-                def release_jump():
-                    time.sleep(JUMP_TAP_DURATION)
+                def release_turn():
+                    time.sleep(TURN_TAP_DURATION)
                     pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
-                    buttons_state['jump'] = False
-                threading.Thread(target=release_jump, daemon=True).start()
+                    buttons_state['turn'] = False
+                threading.Thread(target=release_turn, daemon=True).start()
+
+            if left_arm_up and turn_ready and not buttons_state['turn']:
+                pyboy.send_input(WindowEvent.PRESS_BUTTON_B)
+                buttons_state['turn'] = True
+
+                # Schedule auto-release after tap duration
+                def release_turn():
+                    time.sleep(TURN_TAP_DURATION)
+                    pyboy.send_input(WindowEvent.RELEASE_BUTTON_B)
+                    buttons_state['turn'] = False
+                threading.Thread(target=release_turn, daemon=True).start()
 
             # Reset cooldown after enough time has passed
-            if not jump_ready and (current_time - jump_last_time) > JUMP_COOLDOWN:
-                jump_ready = True
+            if not turn_ready and (current_time - turn_last_time) > TURN_COOLDOWN:
+                turn_ready = True
 
     # Display webcam + keypoints
     annotated = results[0].plot()
