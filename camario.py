@@ -20,13 +20,22 @@ running = True
 # Open webcam
 cap = cv2.VideoCapture(0)
 
-def is_arm_horizontal(shoulder, wrist):
-    dx = wrist[0] - shoulder[0]
-    dy = abs(wrist[1] - shoulder[1])
+# Cooldown control for jump
+jump_ready = True
+jump_last_time = 0
+JUMP_COOLDOWN = 1  # Seconds between jumps
+JUMP_TAP_DURATION = 0.5  # How long the jump "button" is held
+
+def is_arm_horizontal(elbow, wrist):
+    dx = wrist[0] - elbow[0]
+    dy = abs(wrist[1] - elbow[1])
     return abs(dx) > 50 and dy < 50
 
-def is_arm_up(shoulder, wrist):
-    return wrist[1] < shoulder[1] - 50
+def is_arm_up(elbow, wrist):
+    return wrist[1] < elbow[1] - 60
+
+#def are_you_crouched(knee, hip):
+#    return knee[1] > hip[1] + 50
 
 # Background pose detection thread
 def pose_thread():
@@ -38,7 +47,7 @@ def pose_thread():
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = model(rgb_frame, verbose=False)
         pose_result = (results, frame)
-        time.sleep(0.01)  # small delay to reduce CPU load
+        time.sleep(0.01)
 
 threading.Thread(target=pose_thread, daemon=True).start()
 
@@ -52,15 +61,21 @@ while pyboy.tick():
         keypoints_data = results[0].keypoints[0].data
         if keypoints_data is not None:
             kps = keypoints_data[0].cpu().numpy()
-            left_shoulder = kps[5][:2]
-            right_shoulder = kps[6][:2]
+            left_elbow = kps[7][:2]
+            right_elbow = kps[8][:2]
             left_wrist = kps[9][:2]
             right_wrist = kps[10][:2]
+            left_knee = kps[13][:2]
+            right_knee = kps[14][:2]
+            left_hip = kps[11][:2]
+            right_hip = kps[12][:2]
 
-            move_left = is_arm_horizontal(left_shoulder, left_wrist)
-            move_right = is_arm_horizontal(right_shoulder, right_wrist)
-            jump = is_arm_up(right_shoulder, right_wrist) or is_arm_up(left_shoulder, left_wrist)
+            move_left = is_arm_horizontal(left_elbow, left_wrist)
+            move_right = is_arm_horizontal(right_elbow, right_wrist)
+            arm_up = is_arm_up(right_elbow, right_wrist) or is_arm_up(left_elbow, left_wrist)
+            #crouch = are_you_crouched(left_knee, left_hip) or are_you_crouched(right_knee, right_hip)
 
+            # --- LEFT ---
             if move_left and not buttons_state['left']:
                 pyboy.send_input(WindowEvent.PRESS_ARROW_LEFT)
                 buttons_state['left'] = True
@@ -68,6 +83,7 @@ while pyboy.tick():
                 pyboy.send_input(WindowEvent.RELEASE_ARROW_LEFT)
                 buttons_state['left'] = False
 
+            # --- RIGHT ---
             if move_right and not buttons_state['right']:
                 pyboy.send_input(WindowEvent.PRESS_ARROW_RIGHT)
                 buttons_state['right'] = True
@@ -75,16 +91,36 @@ while pyboy.tick():
                 pyboy.send_input(WindowEvent.RELEASE_ARROW_RIGHT)
                 buttons_state['right'] = False
 
-            if jump and not buttons_state['jump']:
+            # --- CROUCH ---
+            #if crouch and not buttons_state['down']:
+            #    pyboy.send_input(WindowEvent.PRESS_ARROW_DOWN)
+            #    buttons_state['down'] = True
+            #elif not crouch and buttons_state['down']:
+            #    pyboy.send_input(WindowEvent.RELEASE_ARROW_DOWN)
+            #    buttons_state['down'] = False
+
+            # --- JUMP TAP ---
+            current_time = time.time()
+            if arm_up and jump_ready:
                 pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
                 buttons_state['jump'] = True
-            elif not jump and buttons_state['jump']:
-                pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
-                buttons_state['jump'] = False
+                jump_ready = False
+                jump_last_time = current_time
 
+                # Schedule auto-release after tap duration
+                def release_jump():
+                    time.sleep(JUMP_TAP_DURATION)
+                    pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
+                    buttons_state['jump'] = False
+                threading.Thread(target=release_jump, daemon=True).start()
+
+            # Reset cooldown after enough time has passed
+            if not jump_ready and (current_time - jump_last_time) > JUMP_COOLDOWN:
+                jump_ready = True
+
+    # Display webcam + keypoints
     annotated = results[0].plot()
     cv2.imshow("Pose Input", annotated)
-
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
