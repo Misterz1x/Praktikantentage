@@ -26,6 +26,7 @@ jump_last_time = 0
 JUMP_COOLDOWN = 0.8  # Seconds between jumps
 JUMP_TAP_DURATION = 0.5  # How long the jump "button" is held
 
+# Functions to determine actions based on pose keypoints
 def is_left_hand_left(elbow, wrist):
     dx = wrist[0] - elbow[0]
     dy = abs(wrist[1] - elbow[1])
@@ -58,9 +59,11 @@ threading.Thread(target=pose_thread, daemon=True).start()
 
 # Main emulator loop
 while pyboy.tick():
+    # Check if the webcam is open
     if pose_result is None:
         continue
 
+    # Process pose detection results with keypoints  
     results, frame = pose_result
     if results and results[0].keypoints is not None and len(results[0].keypoints) > 0:
         keypoints_data = results[0].keypoints[0].data
@@ -75,6 +78,7 @@ while pyboy.tick():
             left_hip = kps[11][:2]
             right_hip = kps[12][:2]
 
+            # Determine actions based on keypoints
             move_left = is_left_hand_left(left_elbow, left_wrist)
             move_right = is_right_hand_right(right_elbow, right_wrist)
             arm_up = is_arm_up(right_elbow, right_wrist) or is_arm_up(left_elbow, left_wrist)

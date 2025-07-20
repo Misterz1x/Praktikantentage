@@ -20,7 +20,7 @@ running = True
 # Open webcam
 cap = cv2.VideoCapture(0)
 
-# Cooldown control for jump
+# Cooldown control for turn
 #jump_ready = True
 #jump_last_time = 0
 #JUMP_COOLDOWN = 0.8  # Seconds between jumps
@@ -30,6 +30,7 @@ turn_last_time = 0
 TURN_TAP_DURATION = 0.5  # How long the turn "button" is held
 TURN_COOLDOWN = 0.5  # Seconds between turns
 
+# Functions to determine actions based on pose keypoints
 def is_left_hand_left(elbow, wrist):
     dx = wrist[0] - elbow[0]
     dy = abs(wrist[1] - elbow[1])
