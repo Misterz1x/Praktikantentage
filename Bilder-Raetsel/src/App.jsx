@@ -5,7 +5,7 @@ import "./App.css";
 
 const riddles = [
   { text: "Ich trage dich auf zwei Rädern, aber ich bin nicht motorisiert.", answer: "bicycle" },
-  { text: "Ich öffne mich, damit du in mein kühles Inneres greifen kannst.", answer: "refrigerator" },
+  { text: "Ich öffne mich, damit du an meine kalten Vorräte kommst.", answer: "refrigerator" },
   { text: "Ich schneide Papier, doch ich bin kein Messer", answer: "scissors" },
   { text: "Ich bewege mich durch die Luft, oft höher als Wolken und weiter als Vögel.", answer: "airplane" },
   { text: "Ich begleite dich auf Wanderungen, gefüllt mit dem, was du brauchst.", answer: "backpack" },
