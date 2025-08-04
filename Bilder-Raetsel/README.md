@@ -17,11 +17,11 @@ Dieses Projekt ist ein React-basierter Rätsel-Detektor, der TensorFlow.js und d
 2. Im Projektverzeichnis die Abhängigkeiten installieren:
 
 ```bash
-# 1. Repository klonen (ersetze URL durch deine GitHub-Repo-URL)
-git clone https://github.com/dein-benutzername/dein-repo.git
+# 1. Repository klonen (dies ist die URL für das gesamte Projekt)
+git clone https://github.com/Misterz1x/Praktikantentage.git
 
 # 2. In das Projektverzeichnis wechseln
-cd dein-repo
+cd dein-repo 
 
 # 3. Abhängigkeiten installieren (inkl. React, TensorFlow.js, coco-ssd und Vite)
 npm install
