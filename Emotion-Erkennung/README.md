@@ -5,7 +5,9 @@ It loads a trained model (`emotion_erkennung.pt`), analyzes each video frame, an
 
 
 This trained model can be downloaded on this link https://github.com/prathmesh444/Emotion-Detection-using-Face-Recognition/tree/main/Model%203/run/classify/train2/weights
-and its original author is Prathmesh soni, https://github.com/prathmesh444
+
+
+Its original author is Prathmesh soni, https://github.com/prathmesh444
 ---
 
 ## Features
